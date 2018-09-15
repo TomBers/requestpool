@@ -18,6 +18,22 @@ defmodule GotRequests do
     |> Enum.map(fn(_) -> emitter() end)
   end
 
+  def stream_iter(items) when length(items) == 0 do
+    IO.puts("Finished")
+  end
+
+  def run_multiple_stream_iter do
+    1..1000
+    |> Enum.map(fn(x) -> x end)
+    |> stream_iter()
+  end
+
+  def stream_iter(items) when length(items) > 0 do
+    Task.async_stream(items, fn(x) -> emitter() end, [max_concurrency: 1000])
+    |> Stream.filter(fn(x) -> x == {:ok, {:error}} end)
+    |> Enum.to_list()
+    |> stream_iter()
+  end
 
   def task_iter do
     Task.async(fn -> emitter() end)
@@ -78,6 +94,12 @@ defmodule GotRequests do
 
   def time_multiple_tasks do
     case :timer.tc(fn -> run_multiple_tasks() end) do
+      {time, _} -> calc_time_from_microseconds(time)
+    end
+  end
+
+  def time_multiple_stream_iter do
+    case :timer.tc(fn -> run_multiple_stream_iter() end) do
       {time, _} -> calc_time_from_microseconds(time)
     end
   end
