@@ -18,6 +18,32 @@ defmodule GotRequests do
     |> Enum.map(fn(_) -> emitter() end)
   end
 
+
+  def task_iter do
+    Task.async(fn -> emitter() end)
+  end
+
+  def run_multiple_tasks do
+    1..1000
+    |> Enum.map(fn(_) -> task_iter() end)
+    |> Enum.map(fn(task) -> Task.await(task) end)
+    |> repeat_errors()
+  end
+
+  def repeat_errors(items) when length(items) == 0 do
+    IO.puts("Finished")
+  end
+
+  def repeat_errors(items) when length(items) > 0 do
+    IO.inspect(items)
+    items
+    |> Enum.filter(fn(x) -> x == {:error} end)
+    |> Enum.map(fn(_) -> task_iter() end)
+    |> Enum.map(fn(task) -> Task.await(task) end)
+    |> repeat_errors()
+  end
+
+
   def iter do
     {:ok, pid} = Task.Supervisor.start_link()
     task = Task.Supervisor.async(pid, fn ->
@@ -27,7 +53,7 @@ defmodule GotRequests do
   end
 
   def run_multiple_requests do
-    1..10
+    1..1000
     |> Enum.map(fn(_) -> async_iter() end)
     |> Enum.map(fn(_) -> get_result() end)
     |> remove_errors()
@@ -44,8 +70,14 @@ defmodule GotRequests do
     spawn(fn -> send(caller, {:result, iter()}) end)
   end
 
-  def time_multiple_rquests do
+  def time_multiple_requests do
     case :timer.tc(fn -> run_multiple_requests() end) do
+      {time, _} -> calc_time_from_microseconds(time)
+    end
+  end
+
+  def time_multiple_tasks do
+    case :timer.tc(fn -> run_multiple_tasks() end) do
       {time, _} -> calc_time_from_microseconds(time)
     end
   end
