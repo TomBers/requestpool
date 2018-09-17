@@ -8,24 +8,34 @@ defmodule SingleProcess do
     end
   end
 
-  def make_request(n, iter) do
+  def make_request(pid, n, iter) do
     IO.puts("Process #{n} - iteration #{iter}")
     this_iter = iter + 1
     case emitter() do
-      {:error} -> make_request(n, this_iter)
-      {:ok} -> IO.puts("#{n} - Finished")
+      {:error} -> make_request(pid, n, this_iter)
+      {:ok} -> send(pid, {:request_done})
     end
   end
 
   def make_task_request do
-    1..5
-    |> Enum.map(fn(x) -> Task.async(fn -> make_request(x, 0) end) end)
+    pid = self()
+    1..500
+    |> Enum.map(fn(x) -> Task.async(fn -> make_request(pid, x, 0) end) end)
     |> Enum.map(fn(task) -> Task.await(task) end)
   end
 
   def make_process_request do
-    1..1000
-    |> Enum.each(fn(x) -> spawn_link(fn -> make_request(x, 0) end) end)
+    pid = self()
+    1..500
+    |> Enum.map(fn(x) -> spawn_link(fn -> make_request(pid, x, 0) end) end)
+    |> Enum.map(fn(_) -> get_result() end)
+    IO.puts("Done")
+  end
+
+  def get_result do
+    receive do
+      {:request_done} -> {:ok}
+    end
   end
 
   def time_task do
